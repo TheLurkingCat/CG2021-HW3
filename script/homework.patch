@@ -1,0 +1,504 @@
+diff --git a/assets/shader/gouraud.frag b/assets/shader/gouraud.frag
+index df0a491..c999225 100644
+--- a/assets/shader/gouraud.frag
++++ b/assets/shader/gouraud.frag
+@@ -1,8 +1,9 @@
+ #version 330 core
+ layout(location = 0) out vec4 FragColor;
+ // Data from vertex shader
++// Hint: Gouraud shading calculates per vertex color, interpolate in fs
++// You may want to add some in here if you add some outs in vs
+ in vec3 rawPosition;
+-in float colorFactor;
+ in vec2 TextureCoordinate;
+ 
+ // Texture of object
+@@ -11,6 +12,9 @@ uniform samplerCube diffuseCubeTexture;
+ uniform int isCube;
+ 
+ void main() {
++  vec4 diffuseTextureColor = texture(diffuseTexture, TextureCoordinate);
++  vec4 diffuseCubeTextureColor = texture(diffuseCubeTexture, rawPosition);
++  vec3 color = isCube == 1 ? diffuseCubeTextureColor.rgb : diffuseTextureColor.rgb;
+   // TODO: vertex shader / fragment shader
+   // Hint:
+   //       1. how to write a vertex shader:
+@@ -28,10 +32,8 @@ void main() {
+   //       6. diffuse = kd * max(normal vector dot light direction, 0.0)
+   //       7. specular = ks * pow(max(normal vector dot halfway direction), 0.0), 8.0);
+   //       8. notice the difference of light direction & distance between directional light & point light
+-  //       9. we've set ambient & color for you
+-  vec4 diffuseTextureColor = texture(diffuseTexture, TextureCoordinate);
+-  vec4 diffuseCubeTextureColor = texture(diffuseCubeTexture, rawPosition);
+-  vec3 color = isCube == 1 ? diffuseCubeTextureColor.rgb : diffuseTextureColor.rgb;
+-  vec3 lighting = colorFactor * color;
+-  FragColor = vec4(lighting, 1.0);
++  //       9. we've set color for you
++
++  // No lighting now
++  FragColor = vec4(color, 1.0);
+ }
+diff --git a/assets/shader/gouraud.vert b/assets/shader/gouraud.vert
+index ce11f65..e18ba0e 100644
+--- a/assets/shader/gouraud.vert
++++ b/assets/shader/gouraud.vert
+@@ -6,8 +6,8 @@ layout(location = 1) in vec3 Normal_in;
+ // u, v
+ layout(location = 2) in vec2 TextureCoordinate_in;
+ // Hint: Gouraud shading calculates per vertex color, interpolate in fs
++// You may want to add some out here
+ out vec3 rawPosition;
+-out float colorFactor;
+ out vec2 TextureCoordinate;
+ 
+ // Uniform blocks
+@@ -39,24 +39,15 @@ layout (std140) uniform light {
+ 
+ // precomputed shadow
+ // Hint: You may want to uncomment this to use shader map texture.
+-uniform sampler2DShadow shadowMap;
+-
+-float calculateShadow(vec3 projectionCoordinate, float normalDotLight) {
+-    // Domain transformation to [0, 1]
+-    projectionCoordinate = projectionCoordinate * 0.5 + 0.5;
+-    // PCF
+-    float shadow = 0.0;
+-    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+-    for (int x = -1; x <= 1; ++x) {
+-        for (int y = -1; y <= 1; ++y) {
+-            vec3 textureCoord = vec3(projectionCoordinate.xy + vec2(x, y) * texelSize, projectionCoordinate.z);
+-            shadow += texture(shadowMap, textureCoord);
+-        }
+-    }
+-    return 0.25 + shadow / 12.0;
+-}
++// uniform sampler2DShadow shadowMap;
+ 
+ void main() {
++  TextureCoordinate = TextureCoordinate_in;
++  rawPosition = mat3(modelMatrix) * Position_in;
++  // Ambient intensity
++  float ambient = 0.1;
++  float ks = 0.75;
++  float kd = 0.75;
+   // TODO: vertex shader / fragment shader
+   // Hint:
+   //       1. how to write a vertex shader:
+@@ -75,49 +66,6 @@ void main() {
+   //       7. specular = ks * pow(max(normal vector dot halfway direction), 0.0), 8.0);
+   //       8. notice the difference of light direction & distance between directional light & point light
+   //       9. we've set ambient & color for you
+-
+-  // Transform vertices
+-  vec4 vertexPosition = modelMatrix * vec4(Position_in, 1.0);
+-  vec4 vertexNormal = normalize(normalMatrix * vec4(Normal_in, 0.0));
+-  vec4 lightSpacePosition = lightSpaceMatrix * vertexPosition;
+-  gl_Position = viewProjectionMatrix * vertexPosition;
+-
+-  // Calculate some directions
+-  // Directional or Positioal light
+-  vec4 lightDirection;
+-  vec4 viewDirection = normalize(viewPosition - vertexPosition);
+-  float attenuation;
+-  if (coefficients.z != 0){
+-    // Spotlight use lightVector as direction
+-    lightDirection = -normalize(lightVector);
+-    float theta = dot(lightDirection, viewDirection);
+-    float epsilon = coefficients.x - coefficients.y;
+-    float distance = length(viewPosition - vertexPosition);
+-    float intensity = clamp((theta - coefficients.y) / epsilon, 0.0, 1.0);
+-    attenuation = intensity / (1.0 + 0.014 * distance + 0.0007 * (distance * distance));
+-  } else if (coefficients.w != 0.0) {
+-    // Directionlight use lightVector as direction
+-    lightDirection = normalize(lightVector);
+-    attenuation = 0.65;
+-  } else {
+-    // Pointlight use lightVector as position
+-    lightDirection = normalize(lightVector - vertexPosition);
+-    float distance = length(lightVector - vertexPosition);
+-    attenuation = 1.0 / (1.0 + 0.027 * distance + 0.0028 * (distance * distance));
+-  }
+-  vec4 reflectDirection = reflect(-lightDirection, vertexNormal);
+-
+-  // Ambient intensity
+-  float ambient = 0.1;
+-  // Diffuse intensity
+-  float normalDotLight = dot(vertexNormal, lightDirection);
+-  float diffuse = 0.75 * max(normalDotLight, 0.0);
+-  // Specular intensity
+-  float specular = 0.75 * pow(max(dot(viewDirection, reflectDirection), 0.0), 8.0);
+-
+-  vec3 perspectiveDivision = lightSpacePosition.xyz / lightSpacePosition.w;
+-  float shadow = perspectiveDivision.z > 1.0 ? 1.0 : calculateShadow(perspectiveDivision, normalDotLight);
+-  colorFactor = (ambient + attenuation * shadow * (diffuse + specular));
+-  TextureCoordinate = TextureCoordinate_in;
+-  rawPosition = mat3(modelMatrix) * Position_in;
++  // Example without lighting :)
++  gl_Position = viewProjectionMatrix * modelMatrix * vec4(Position_in, 1.0);
+ }
+diff --git a/assets/shader/phong.frag b/assets/shader/phong.frag
+index a14b820..01935c1 100644
+--- a/assets/shader/phong.frag
++++ b/assets/shader/phong.frag
+@@ -1,38 +1,20 @@
+ #version 330 core
+ layout(location = 0) out vec4 FragColor;
+ 
+-in VS_OUT {
+-  vec3 Position;
+-  vec3 Normal;
+-  vec2 TextureCoordinate;
+-  vec4 LightSpacePosition;
+-  flat vec4 lightVector;
+-  flat vec4 viewPosition;
+-  flat vec4 lightCoefficients;
+-  vec3 rawPosition;
+-} fs_in;
++in vec2 TextureCoordinate;
++in vec3 rawPosition;
+ 
+ uniform sampler2D diffuseTexture;
+ uniform samplerCube diffuseCubeTexture;
+-uniform sampler2DShadow shadowMap;
++// precomputed shadow
++// Hint: You may want to uncomment this to use shader map texture.
++// uniform sampler2DShadow shadowMap;
+ uniform int isCube;
+ 
+-float calculateShadow(vec3 projectionCoordinate, float normalDotLight) {
+-    // Domain transformation to [0, 1]
+-    projectionCoordinate = projectionCoordinate * 0.5 + 0.5;
+-    // PCF
+-    float shadow = 0.0;
+-    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+-    for (int x = -1; x <= 1; ++x) {
+-        for (int y = -1; y <= 1; ++y) {
+-            vec3 textureCoord = vec3(projectionCoordinate.xy + vec2(x, y) * texelSize, projectionCoordinate.z);
+-            shadow += texture(shadowMap, textureCoord);
+-        }
+-    }
+-    return 0.25 + shadow / 12.0;
+-}
+-
+ void main() {
++  vec4 diffuseTextureColor = texture(diffuseTexture, TextureCoordinate);
++  vec4 diffuseCubeTextureColor = texture(diffuseCubeTexture, rawPosition);
++  vec3 color = isCube == 1 ? diffuseCubeTextureColor.rgb : diffuseTextureColor.rgb;
+   // TODO: vertex shader / fragment shader
+   // Hint:
+   //       1. how to write a vertex shader:
+@@ -51,49 +33,5 @@ void main() {
+   //       7. specular = ks * pow(max(normal vector dot halfway direction), 0.0), 8.0);
+   //       8. notice the difference of light direction & distance between directional light & point light
+   //       9. we've set ambient & color for you
+-
+-  vec3 normal = normalize(fs_in.Normal);
+-  // Calculate some directions
+-  // Directional or Positioal light
+-  vec3 lightDirection;
+-  vec3 viewDirection = normalize(fs_in.viewPosition.xyz - fs_in.Position);
+-  float attenuation;
+-  if (fs_in.lightCoefficients.z != 0) {
+-    // Spotlight use lightVector as direction
+-    lightDirection = -normalize(fs_in.lightVector.xyz);
+-    float theta = dot(lightDirection, viewDirection);
+-    float epsilon = fs_in.lightCoefficients.x - fs_in.lightCoefficients.y;
+-    float distance = length(fs_in.viewPosition.xyz - fs_in.Position);
+-    float intensity = clamp((theta - fs_in.lightCoefficients.y) / epsilon, 0.0, 1.0);
+-    attenuation = intensity / (1.0 + 0.014 * distance + 0.0007 * (distance * distance));
+-  } else if (fs_in.lightCoefficients.w != 0) {
+-    // Directionlight use lightVector as direction
+-    lightDirection = normalize(fs_in.lightVector.xyz);
+-    attenuation = 0.65;
+-  } else {
+-    // Pointlight use lightVector as position
+-    lightDirection = normalize(fs_in.lightVector.xyz - fs_in.Position);
+-    float distance = length(fs_in.lightVector.xyz - fs_in.Position);
+-    attenuation = 1.0 / (1.0 + 0.027 * distance +  0.0028 * (distance * distance));
+-  }
+-  vec3 reflectDirection = reflect(-lightDirection, normal);
+-  vec3 halfwayDirection = normalize(lightDirection + viewDirection);
+-  // Ambient intensity
+-  float ambient = 0.1;
+-  // Diffuse intensity
+-  float normalDotLight = dot(normal, lightDirection);
+-  float diffuse = 0.75 * max(normalDotLight, 0.0);
+-  // Specular intensity (Phong)
+-  // float specular = pow(max(dot(viewDirection, reflectDirection), 0.0), 8.0);
+-  // Specular intensity (Blinn-Phong)
+-  float specular = 0.75 * pow(max(dot(normal, halfwayDirection), 0.0), 8.0);
+-  // Shadow
+-  vec3 perspectiveDivision = fs_in.LightSpacePosition.xyz / fs_in.LightSpacePosition.w;
+-  float shadow = perspectiveDivision.z > 1.0 ? 1.0 : calculateShadow(perspectiveDivision, normalDotLight);
+-
+-  vec4 diffuseTextureColor = texture(diffuseTexture, fs_in.TextureCoordinate);
+-  vec4 diffuseCubeTextureColor = texture(diffuseCubeTexture, fs_in.rawPosition);
+-  vec3 color = isCube == 1 ? diffuseCubeTextureColor.rgb : diffuseTextureColor.rgb;
+-  vec3 lighting = (ambient + attenuation * shadow * (diffuse + specular)) * color;
+-  FragColor = vec4(lighting, 1.0);
++  FragColor = vec4(color, 1.0);
+ }
+diff --git a/assets/shader/phong.vert b/assets/shader/phong.vert
+index e97df82..7ee58ef 100644
+--- a/assets/shader/phong.vert
++++ b/assets/shader/phong.vert
+@@ -3,16 +3,8 @@ layout(location = 0) in vec3 Position_in;
+ layout(location = 1) in vec3 Normal_in;
+ layout(location = 2) in vec2 TextureCoordinate_in;
+ 
+-out VS_OUT {
+-  vec3 Position;
+-  vec3 Normal;
+-  vec2 TextureCoordinate;
+-  vec4 LightSpacePosition;
+-  flat vec4 lightVector;
+-  flat vec4 viewPosition;
+-  flat vec4 lightCoefficients;
+-  vec3 rawPosition;
+-} vs_out;
++out vec2 TextureCoordinate;
++out vec3 rawPosition;
+ 
+ layout (std140) uniform model {
+   // Model matrix
+@@ -38,6 +30,12 @@ layout (std140) uniform light {
+ };
+ 
+ void main() {
++  TextureCoordinate = TextureCoordinate_in;
++  rawPosition = mat3(modelMatrix) * Position_in;
++  // Ambient intensity
++  float ambient = 0.1;
++  float ks = 0.75;
++  float kd = 0.75;
+   // TODO: vertex shader / fragment shader
+   // Hint:
+   //       1. how to write a vertex shader:
+@@ -56,13 +54,6 @@ void main() {
+   //       7. specular = ks * pow(max(normal vector dot halfway direction), 0.0), 8.0);
+   //       8. notice the difference of light direction & distance between directional light & point light
+   //       9. we've set ambient & color for you
+-  vs_out.Position = vec3(modelMatrix * vec4(Position_in, 1.0));
+-  vs_out.Normal = mat3(normalMatrix) * Normal_in;
+-  vs_out.TextureCoordinate = TextureCoordinate_in;
+-  vs_out.LightSpacePosition = lightSpaceMatrix * vec4(vs_out.Position, 1.0);
+-  vs_out.lightVector = lightVector;
+-  vs_out.viewPosition = viewPosition;
+-  vs_out.lightCoefficients = coefficients;
+-  vs_out.rawPosition = mat3(modelMatrix) * Position_in;
++  // Example without lighting :)
+   gl_Position = viewProjectionMatrix * modelMatrix * vec4(Position_in, 1.0);
+ }
+diff --git a/src/camera/quat_camera.cpp b/src/camera/quat_camera.cpp
+index bb59243..cd2eb95 100644
+--- a/src/camera/quat_camera.cpp
++++ b/src/camera/quat_camera.cpp
+@@ -43,22 +43,24 @@ bool QuaternionCamera::move(GLFWwindow* window) {
+ }
+ 
+ void QuaternionCamera::updateView() {
+-  // TODO: paste your HW1 here
+   constexpr glm::vec3 original_front(0, 0, -1);
+   constexpr glm::vec3 original_up(0, 1, 0);
+   front = rotation * original_front;
+   up = rotation * original_up;
+   right = glm::cross(front, up);
+-  viewMatrix = glm::lookAt(position, position + front, up);
++  // TODO: paste your HW1 here
++  viewMatrix = glm::mat4(1);
++  // END TODO block
+   viewProjectionMatrix = projectionMatrix * viewMatrix;
+ }
+ 
+ void QuaternionCamera::updateProjection(float aspectRatio) {
+-  // TODO: paste your HW1 here
+   constexpr float FOV = glm::radians(45.0f);
+   constexpr float zNear = 0.1f;
+   constexpr float zFar = 100.0f;
+-  projectionMatrix = glm::perspective(FOV, aspectRatio, zNear, zFar);
++  // TODO: paste your HW1 here
++  projectionMatrix = glm::mat4(1);
++  // END TODO block
+   viewProjectionMatrix = projectionMatrix * viewMatrix;
+ }
+ 
+diff --git a/src/light/directionallight.cpp b/src/light/directionallight.cpp
+index 4644181..bda0f67 100644
+--- a/src/light/directionallight.cpp
++++ b/src/light/directionallight.cpp
+@@ -11,8 +11,6 @@ DirectionalLight::DirectionalLight(const glm::vec3& lightDirection) noexcept :
+   //         zNear, zFar, bottom, top, left, right = -75.0, 75.0, -30.0, 30.0, -30.0, 30.0
+   //         glm::ortho (https://glm.g-truc.net/0.9.9/api/a00665.html#ga6615d8a9d39432e279c4575313ecb456)
+   //       2. You need to calculate the view matrix too
+-  viewProjection *= glm::ortho(-30.0f, 30.0f, -30.0f, 30.0f, -75.0f, 75.0f);
+-  viewProjection *= glm::lookAt(lightDirection, glm::vec3(0), glm::vec3(0, 1, 0));
+   setLightSpaceMatrix(viewProjection);
+ }
+ DirectionalLightPTR DirectionalLight::make_unique(const glm::vec3& lightDirection) {
+diff --git a/src/light/pointlight.cpp b/src/light/pointlight.cpp
+index 43d7dd0..7640ea3 100644
+--- a/src/light/pointlight.cpp
++++ b/src/light/pointlight.cpp
+@@ -13,8 +13,6 @@ PointLight::PointLight(const glm::vec3& lightPosition) noexcept :
+   //         same parameter as you camera
+   //         glm::perspective (https://glm.g-truc.net/0.9.9/api/a00243.html#ga747c8cf99458663dd7ad1bb3a2f07787)
+   //       2. You need to calculate the view matrix too
+-  viewProjection *= glm::perspective(glm::half_pi<float>(), 1.0f, 1.0f, 100.0f);
+-  viewProjection *= glm::lookAt(lightPosition, glm::vec3(0), glm::vec3(0, 1, 0));
+   setLightSpaceMatrix(viewProjection);
+ }
+ PointLightPTR PointLight::make_unique(const glm::vec3& lightPosition) {
+diff --git a/src/main.cpp b/src/main.cpp
+index b10873a..a82750e 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -50,21 +50,8 @@ void keyCallback(GLFWwindow* window, int key, int, int action, int) {
+     // TODO: Detect key-events, to:
+     //       1. switch among directional light, point light, and spot light, or
+     //       2. switch between phong shader and gouraurd shader
++    // Hint: use currentLight, isLightChanged, currentShader
+     // Note: 1 key for 1 variable change
+-    case GLFW_KEY_H:
+-      currentLight = 0;
+-      isLightChanged = true;
+-      break;
+-    case GLFW_KEY_P:
+-      currentLight = 1;
+-      isLightChanged = true;
+-      break;
+-    case GLFW_KEY_O:
+-      currentLight = 2;
+-      isLightChanged = true;
+-      break;
+-    case GLFW_KEY_G: currentShader = 2; break;
+-    case GLFW_KEY_B: currentShader = 1; break;
+     default: break;
+   }
+ }
+@@ -106,6 +93,7 @@ int main() {
+     //       1. you can set other uniforms you want in this for-loop
+     //       2. check ShaderProgram class to know how to bind more easily
+     //       3. It's safe to find and bind a non-exist uniform, it will just become NOP
++    //       4. For textures, you set a int for it, then bind that texture to the texture unit later
+     // Note:
+     //       1. glUniform
+     //        https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glUniform.xhtml
+@@ -116,10 +104,11 @@ int main() {
+     //       4. glGetUniformBlockIndex
+     //        https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glGetUniformBlockIndex.xhtml
+     //       5. Check uniformBlockBinding and setUniform member function of ShaderProgram class
+-
++    //       We only set some variables here, you need more when you're lighting
+     shaderPrograms[i].uniformBlockBinding("model", 0);
+     shaderPrograms[i].uniformBlockBinding("camera", 1);
+-    shaderPrograms[i].uniformBlockBinding("light", 2);
++    // Maybe light here or other uniform you set :)
++
+     shaderPrograms[i].setUniform("diffuseTexture", 0);
+     shaderPrograms[i].setUniform("shadowMap", 1);
+     shaderPrograms[i].setUniform("diffuseCubeTexture", 2);
+@@ -175,10 +164,6 @@ int main() {
+   // Hint: look what we did when binding other UBO
+   for (int i = 0; i < LIGHT_COUNT; ++i) {
+     int offset = i * perLightOffset;
+-    lightUBO.load(offset, sizeof(glm::mat4), lights[i]->getLightSpaceMatrixPTR());
+-    lightUBO.load(offset + sizeof(glm::mat4), sizeof(glm::vec4), lights[i]->getLightVectorPTR());
+-    lightUBO.load(offset + sizeof(glm::mat4) + sizeof(glm::vec4), sizeof(glm::vec4),
+-                  lights[i]->getLightCoefficientsPTR());
+   }
+   // Texture
+   graphics::texture::ShadowMap shadow(maxTextureSize);
+@@ -186,11 +171,12 @@ int main() {
+   graphics::texture::TextureCubeMap dice;
+   colorOrange.fromColor(glm::vec4(1, 0.5, 0, 1));
+   // TODO: Read texture(and set color) for objects respectively
+-  // Hint: check the calss of the variable(wood, colorOrange, dice) we've created for you
++  // Hint: check the calss of the variable(wood, colorOrange, dice) we've created for you.
+   //       fromFile member function
+-  wood.fromFile("../assets/texture/wood.jpg");
+-  dice.fromFile("../assets/texture/posx.jpg", "../assets/texture/negx.jpg", "../assets/texture/posy.jpg",
+-                "../assets/texture/negy.jpg", "../assets/texture/posz.jpg", "../assets/texture/negz.jpg");
++  // We currently set everything to a color
++  wood.fromColor(glm::vec4(0.5, 0, 0.5, 1));
++  dice.fromColor(glm::vec4(1, 0, 0, 1), glm::vec4(1, 0.5, 0, 1), glm::vec4(0, 1, 0, 1), glm::vec4(0, 0, 1, 1),
++                 glm::vec4(1, 1, 1, 1), glm::vec4(1, 1, 0, 1));
+   // Meshes
+   std::vector<graphics::shape::ShapePTR> meshes;
+   std::vector<graphics::texture::Texture*> diffuseTextures;
+@@ -223,14 +209,11 @@ int main() {
+   }
+   assert(meshes.size() == MESH_COUNT);
+   assert(diffuseTextures.size() == MESH_COUNT);
+-  // TODO: Bind light object's buffer
+-  // Hint: look what we did when binding other UBO
+   for (int i = 0; i < MESH_COUNT; ++i) {
+     int offset = i * perMeshOffset;
+     meshUBO.load(offset, sizeof(glm::mat4), meshes[i]->getModelMatrixPTR());
+     meshUBO.load(offset + sizeof(glm::mat4), sizeof(glm::mat4), meshes[i]->getNormalMatrixPTR());
+   }
+-  // This will not change in rendering loop
+   shadow.bind(1);
+   dice.bind(2);
+   // Main rendering loop
+@@ -251,14 +234,15 @@ int main() {
+         lightUBO.load(offset + sizeof(glm::mat4), sizeof(glm::vec4), glm::value_ptr(front));
+       }
+     }
+-    // TODO: Switch light uniforms if light changes
+-    // Hint:
+-    //       1. we've load all the lights' unifroms eariler, so here we just tell shader where to start binding
+-    //       the next light info
+-    //       2. you should not bind the same light every time, because we are in a while-loop
++
+     if (isLightChanged) {
+       int offset = currentLight * perLightOffset;
+-      lightUBO.bindUniformBlockIndex(2, offset, perLightSize);
++      // TODO: Switch light uniforms if light changes
++      // Hint:
++      //       1. we've load all the lights' unifroms eariler, so here we just tell shader where to start binding
++      //       the next light info
++      //       2. you should not bind the same light every time, because we are in a while-loop
++      // Note: You can do this by a single line of lightUBO.bindUniformBlockIndex call
+       if (lights[currentLight]->getType() == graphics::light::LightType::Spot) {
+         lights[currentLight]->update(currentCamera->getViewMatrix());
+         glm::vec4 front = currentCamera->getFront();
+@@ -267,32 +251,25 @@ int main() {
+       }
+       isLightChanged = false;
+     }
+-    // Render shadow first
+-    glViewport(0, 0, shadow.getSize(), shadow.getSize());
+-    glCullFace(GL_FRONT);
+-    shaderPrograms[0].use();
+-    shadow.bindFramebuffer();
+-    glClear(GL_DEPTH_BUFFER_BIT);
+-    for (int i = 0; i < MESH_COUNT; ++i) {
+-      // Update model matrix
+-      meshUBO.bindUniformBlockIndex(0, i * perMeshOffset, perMeshSize);
+-      meshes[i]->draw();
+-    }
+-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+-    glCullFace(GL_BACK);
+-    glViewport(0, 0, OpenGLContext::getWidth(), OpenGLContext::getHeight());
++    // TODO (If you want to implement shadow): Render shadow to texture first
++    // Hint: You need to change glViewport, glCullFace and bind shadow's framebuffer to render
++
+     // GL_XXX_BIT can simply "OR" together to use.
+     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+     // Render all objects
+     shaderPrograms[currentShader].use();
+     for (int i = 0; i < MESH_COUNT; ++i) {
++      // Change uniform if it is a cube (We want to use cubemap texture)
+       if (meshes[i]->getType() == graphics::shape::ShapeType::Cube) {
+         shaderPrograms[currentShader].setUniform("isCube", 1);
+       } else {
+         shaderPrograms[currentShader].setUniform("isCube", 0);
+       }
++      // Bind current object's model matrix
+       meshUBO.bindUniformBlockIndex(0, i * perMeshOffset, perMeshSize);
++      // Bind current object's texture
+       diffuseTextures[i]->bind(0);
++      // Render current object
+       meshes[i]->draw();
+     }
+ #ifdef __APPLE__
