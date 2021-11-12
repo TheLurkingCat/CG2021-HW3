@@ -23,6 +23,8 @@ class OpenGLContext final {
   static void createContext(int GLversion, int profile);
   /// @return Current window handle.
   static GLFWwindow* getWindow() { return window; }
+  /// @return The OpenGL context version.
+  static int getOpenGLVersion() { return major_version * 10 + minor_version; }
   /// @return Refresh rate of the primary monitor.
   static int getRefreshRate() { return refresh_rate; }
   /// @return Current framebuffer width

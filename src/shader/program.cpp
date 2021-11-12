@@ -70,6 +70,15 @@ void ShaderProgram::uniformBlockBinding(const char* name, GLuint uniformBlockBin
 void ShaderProgram::uniformBlockBinding(GLuint uniformBlockIndex, GLuint uniformBlockBinding) const {
   if (uniformBlockIndex != GL_INVALID_INDEX) glUniformBlockBinding(handle, uniformBlockIndex, uniformBlockBinding);
 }
-void ShaderProgram::setUniform(const char* name, int i1) { glUniform1i(getUniformLocation(name), i1); }
+void ShaderProgram::setUniform(const char* name, GLint i1) { glUniform1i(getUniformLocation(name), i1); }
 void ShaderProgram::setUniform(GLint location, GLint i1) { glUniform1i(location, i1); }
+void ShaderProgram::setUniform(const char* name, GLfloat f1) { glUniform1f(getUniformLocation(name), f1); }
+void ShaderProgram::setUniform(GLint location, GLfloat f1) { glUniform1f(location, f1); }
+
+void ShaderProgram::setUniformMatrix(const char* name, const GLfloat* mat4) {
+  glUniformMatrix4fv(getUniformLocation(name), 1, GL_FALSE, mat4);
+}
+void ShaderProgram::setUniformMatrix(GLint location, const GLfloat* mat4) {
+  glUniformMatrix4fv(location, 1, GL_FALSE, mat4);
+}
 }  // namespace graphics::shader
