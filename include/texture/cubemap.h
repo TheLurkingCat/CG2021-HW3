@@ -10,7 +10,8 @@ class TextureCubeMap : public Texture {
                 const utils::fs::path& posy,
                 const utils::fs::path& negy,
                 const utils::fs::path& posz,
-                const utils::fs::path& negz) const;
+                const utils::fs::path& negz,
+                bool flip = true) const;
 
   void fromColor(const glm::vec4& posx,
                  const glm::vec4& negx,

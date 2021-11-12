@@ -18,7 +18,7 @@ set(HW3_SOURCE
   ${HW3_SOURCE_DIR}/texture/shadow.cpp
   ${HW3_SOURCE_DIR}/texture/texture.cpp
   ${HW3_SOURCE_DIR}/texture/texture2d.cpp
-  # ${HW3_SOURCE_DIR}/main.cpp
+  ${HW3_SOURCE_DIR}/main.cpp
 )
 
 set(HW3_INCLUDE_DIR ${HW3_SOURCE_DIR}/../include)

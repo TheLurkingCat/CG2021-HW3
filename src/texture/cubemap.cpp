@@ -9,10 +9,11 @@ void TextureCubeMap::fromFile(const utils::fs::path& posx,
                               const utils::fs::path& posy,
                               const utils::fs::path& negy,
                               const utils::fs::path& posz,
-                              const utils::fs::path& negz) const {
+                              const utils::fs::path& negz,
+                              bool flip) const {
   std::array<const utils::fs::path, 6> filenames{posx, negx, posy, negy, posz, negz};
   int width, height, nChannels;
-  stbi_set_flip_vertically_on_load(1);
+  stbi_set_flip_vertically_on_load(flip);
   bind(15);
   for (int i = 0; i < 6; ++i) {
     stbi_uc* data = stbi_load(filenames[i].string().c_str(), &width, &height, &nChannels, STBI_default);
