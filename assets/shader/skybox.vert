@@ -7,11 +7,14 @@ layout(location = 2) in vec2 textureCoordinate_in;
 
 out vec3 textureCoordinate;
 
-// We need to cancel translation in view matrix
 uniform mat4 view;
 uniform mat4 projection;
 
 void main() {
-  gl_Position = (projection * mat4(mat3(view)) * vec4(position_in, 1.0)).xyww;
   textureCoordinate = position_in;
+  // TODO: Set gl_Position
+  // Hint:
+  //   1. We want skybox infinite far from us. So the z should be 1.0 after perspective division.
+  //   2. We don't want the skybox moving when we move. So the translation in view matrix should be removed.
+  gl_Position = (projection * mat4(mat3(view)) * vec4(position_in, 1.0)).xyww;
 }
