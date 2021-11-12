@@ -1,11 +1,10 @@
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <iostream>
 
 #include <GLFW/glfw3.h>
 #define GLAD_GL_IMPLEMENTATION
@@ -16,6 +15,10 @@
 #define STBI_ONLY_JPEG
 #include <stb_image.h>
 #undef STB_IMAGE_IMPLEMENTATION
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
 #include "graphics.h"
 
 // Unnamed namespace for global variables
@@ -26,8 +29,12 @@ graphics::camera::Camera* currentCamera = nullptr;
 bool isWindowSizeChanged = true;
 int currentShader = 1;
 int alignSize = 256;
-// TODO (optional): Configs
-// You should change line 32-35 if you add more shader / camera / mesh.
+
+float fresnelBias = 0.5f;
+float fresnelScale = 0.4f;
+float fresnelPower = 1;
+bool updateFresnelParameters = true;
+
 constexpr int CAMERA_COUNT = 1;
 constexpr int MESH_COUNT = 1;
 constexpr int SHADER_PROGRAM_COUNT = 2;
@@ -42,16 +49,17 @@ void keyCallback(GLFWwindow* window, int key, int, int action, int) {
   if (key == GLFW_KEY_ESCAPE) {
     glfwSetWindowShouldClose(window, GLFW_TRUE);
     return;
-  }
-  switch (key) {
-    // TODO: Detect key-events, to:
-    //       1. switch among directional light, point light, and spot light, or
-    //       2. switch between phong shader and gouraurd shader
-    // Hint: use currentLight, isLightChanged, currentShader
-    // Note: 1 key for 1 variable change
-    default: break;
+  } else if (key == GLFW_KEY_F9) {
+    // Disable mouse cursor.
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  } else if (key == GLFW_KEY_F8) {
+    // Enable mouse cursor.
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   }
 }
+
+void renderMainPanel();
+void renderGUI();
 
 void resizeCallback(GLFWwindow* window, int width, int height) {
   OpenGLContext::framebufferResizeCallback(window, width, height);
@@ -64,15 +72,23 @@ int main() {
   // Initialize OpenGL context, details are wrapped in class.
   OpenGLContext::createContext(43, GLFW_OPENGL_CORE_PROFILE);
   GLFWwindow* window = OpenGLContext::getWindow();
-  glfwSetWindowTitle(window, "HW2");
+  glfwSetWindowTitle(window, "HW3");
   glfwSetKeyCallback(window, keyCallback);
-  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   glfwSetFramebufferSizeCallback(window, resizeCallback);
 #ifndef NDEBUG
   OpenGLContext::printSystemInfo();
   // This is useful if you want to debug your OpenGL API calls.
   OpenGLContext::enableDebugCallback();
 #endif
+  // Initialize ImGUI
+  ImGui::CreateContext();
+  ImGui::StyleColorsDark();
+  ImGui_ImplGlfw_InitForOpenGL(window, true);
+  if (OpenGLContext::getOpenGLVersion() >= 41) {
+    ImGui_ImplOpenGL3_Init("#version 410 core");
+  } else {
+    ImGui_ImplOpenGL3_Init(nullptr);
+  }
   // Initialize shader
   std::vector<graphics::shader::ShaderProgram> shaderPrograms(SHADER_PROGRAM_COUNT);
   std::string filenames[SHADER_PROGRAM_COUNT] = {"skybox", "part1"};
@@ -154,31 +170,37 @@ int main() {
     if (isCameraMove || isWindowSizeChanged) {
       isWindowSizeChanged = false;
       shaderPrograms[0].use();
-      GLint loc = shaderPrograms[0].getUniformLocation("view");
-      glUniformMatrix4fv(loc, 1, GL_FALSE, currentCamera->getViewMatrixPTR());
-      loc = shaderPrograms[0].getUniformLocation("projection");
-      glUniformMatrix4fv(loc, 1, GL_FALSE, currentCamera->getProjectionMatrixPTR());
+      shaderPrograms[0].setUniformMatrix("view", currentCamera->getViewMatrixPTR());
+      shaderPrograms[0].setUniformMatrix("projection", currentCamera->getProjectionMatrixPTR());
 
       cameraUBO.load(0, sizeof(glm::mat4), currentCamera->getViewProjectionMatrixPTR());
       cameraUBO.load(sizeof(glm::mat4), sizeof(glm::vec4), currentCamera->getPositionPTR());
     }
+    shaderPrograms[currentShader].use();
+    // Update fresnel equation's parametsers.
+    if (updateFresnelParameters) {
+      shaderPrograms[currentShader].setUniform("fresnelBias", fresnelBias);
+      shaderPrograms[currentShader].setUniform("fresnelScale", fresnelScale);
+      shaderPrograms[currentShader].setUniform("fresnelPower", fresnelPower);
+    }
     // GL_XXX_BIT can simply "OR" together to use.
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     // Render all objects
-    shaderPrograms[currentShader].use();
     for (int i = 0; i < MESH_COUNT; ++i) {
       // Bind current object's model matrix
       meshUBO.bindUniformBlockIndex(0, i * perMeshOffset, perMeshSize);
       // Render current object
       meshes[i]->draw();
     }
-    // Render skybox in the end
+    // Render skybox after meshes
     glDepthFunc(GL_LEQUAL);
     glFrontFace(GL_CW);
     shaderPrograms[0].use();
     skyboxCube->draw();
     glFrontFace(GL_CCW);
     glDepthFunc(GL_LESS);
+    // Render GUI
+    renderGUI();
 #ifdef __APPLE__
     // Some platform need explicit glFlush
     glFlush();
@@ -186,4 +208,27 @@ int main() {
     glfwSwapBuffers(window);
   }
   return 0;
+}
+void renderMainPanel() {
+  ImGui::SetNextWindowSize(ImVec2(320.0f, 100.0f), ImGuiCond_Once);
+  ImGui::SetNextWindowCollapsed(0, ImGuiCond_Once);
+  ImGui::SetNextWindowPos(ImVec2(50.0f, 50.0f), ImGuiCond_Once);
+  ImGui::SetNextWindowBgAlpha(0.2f);
+  bool dirty = false;
+  if (ImGui::Begin("Configs")) {
+    dirty |= ImGui::SliderFloat("Fresnel bias", &fresnelBias, 0, 1, "%.2f");
+    dirty |= ImGui::SliderFloat("Fresnel scale", &fresnelScale, 0, 1, "%.2f");
+    dirty |= ImGui::SliderFloat("Fresnel power", &fresnelPower, 0, 100, "%.1f");
+    ImGui::End();
+  }
+  updateFresnelParameters = dirty;
+}
+
+void renderGUI() {
+  ImGui_ImplOpenGL3_NewFrame();
+  ImGui_ImplGlfw_NewFrame();
+  ImGui::NewFrame();
+  renderMainPanel();
+  ImGui::Render();
+  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }

@@ -50,7 +50,7 @@ set(HW3_HEADER
 add_executable(HW3 ${HW3_SOURCE} ${HW3_HEADER})
 target_include_directories(HW3 PRIVATE ${HW3_INCLUDE_DIR})
 
-add_dependencies(HW3 glad glfw glm stb)
+add_dependencies(HW3 glad glfw glm stb imgui)
 # Can include glfw and glad in arbitrary order
 target_compile_definitions(HW3 PRIVATE GLFW_INCLUDE_NONE)
 # More warnings
@@ -71,6 +71,7 @@ target_link_libraries(HW3
   PRIVATE glad
   PRIVATE glfw
   PRIVATE stb
+  PRIVATE imgui
 )
 
 if (TARGET glm::glm_shared)

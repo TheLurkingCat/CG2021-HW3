@@ -7,6 +7,7 @@
 - [glad](https://github.com/Dav1dde/glad)
 - [glfw](https://github.com/glfw/glfw)
 - [glm](https://github.com/g-truc/glm)
+- [imgui](https://github.com/ocornut/imgui.git)
 - [stb](https://github.com/nothings/stb)
 
 ### Dependencies for Windows
