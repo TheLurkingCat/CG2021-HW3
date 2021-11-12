@@ -34,6 +34,7 @@ float fresnelBias = 0.5f;
 float fresnelScale = 0.4f;
 float fresnelPower = 1;
 bool updateFresnelParameters = true;
+bool mouseBinded = false;
 
 constexpr int CAMERA_COUNT = 1;
 constexpr int MESH_COUNT = 1;
@@ -50,11 +51,12 @@ void keyCallback(GLFWwindow* window, int key, int, int action, int) {
     glfwSetWindowShouldClose(window, GLFW_TRUE);
     return;
   } else if (key == GLFW_KEY_F9) {
-    // Disable mouse cursor.
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-  } else if (key == GLFW_KEY_F8) {
-    // Enable mouse cursor.
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    // Disable / enable mouse cursor.
+    if (mouseBinded)
+      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    else
+      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    mouseBinded = !mouseBinded;
   }
 }
 
@@ -166,7 +168,7 @@ int main() {
     // Polling events.
     glfwPollEvents();
     // Update camera's uniforms if camera moves.
-    bool isCameraMove = currentCamera->move(window);
+    bool isCameraMove = mouseBinded ? currentCamera->move(window) : false;
     if (isCameraMove || isWindowSizeChanged) {
       isWindowSizeChanged = false;
       shaderPrograms[0].use();
