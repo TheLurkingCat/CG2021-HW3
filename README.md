@@ -10,6 +10,8 @@
 - [imgui](https://github.com/ocornut/imgui.git)
 - [stb](https://github.com/nothings/stb)
 
+The skybox texture is created by Hipshot@www.zfight.com
+
 ### Dependencies for Windows
 
 Visual Studio
