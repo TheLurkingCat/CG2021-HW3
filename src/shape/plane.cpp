@@ -65,10 +65,12 @@ Plane::Plane(const std::vector<GLfloat>& vertices, const std::vector<GLuint>& in
 }
 
 void Plane::draw() const {
+  if (preDrawCallback) preDrawCallback();
   vao->bind();
   GLsizei indexCount = static_cast<GLsizei>(ebo->getSize() / sizeof(GLuint));
   glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, nullptr);
   glBindVertexArray(0);
+  if (postDrawCallback) postDrawCallback();
 }
 
 void Plane::generateVertices(std::vector<GLfloat>& vertices,

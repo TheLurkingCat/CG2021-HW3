@@ -61,10 +61,12 @@ Cube::Cube(const std::vector<GLfloat>& vertices, const std::vector<GLuint>& indi
 }
 
 void Cube::draw() const {
+  if (preDrawCallback) preDrawCallback();
   vao->bind();
   GLsizei indexCount = static_cast<GLsizei>(ebo->getSize() / sizeof(GLubyte));
   glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_BYTE, nullptr);
   glBindVertexArray(0);
+  if (postDrawCallback) postDrawCallback();
 }
 
 void Cube::generateVertices(std::vector<GLfloat>& vertices, std::vector<GLubyte>& indices) {

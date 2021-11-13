@@ -74,6 +74,10 @@ void ShaderProgram::setUniform(const char* name, GLint i1) { glUniform1i(getUnif
 void ShaderProgram::setUniform(GLint location, GLint i1) { glUniform1i(location, i1); }
 void ShaderProgram::setUniform(const char* name, GLfloat f1) { glUniform1f(getUniformLocation(name), f1); }
 void ShaderProgram::setUniform(GLint location, GLfloat f1) { glUniform1f(location, f1); }
+void ShaderProgram::setUniform(const char* name, GLfloat f1, GLfloat f2) {
+  glUniform2f(getUniformLocation(name), f1, f2);
+}
+void ShaderProgram::setUniform(GLint location, GLfloat f1, GLfloat f2) { glUniform2f(location, f1, f2); }
 
 void ShaderProgram::setUniformMatrix(const char* name, const GLfloat* mat4) {
   glUniformMatrix4fv(getUniformLocation(name), 1, GL_FALSE, mat4);

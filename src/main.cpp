@@ -27,18 +27,18 @@ namespace {
 graphics::camera::Camera* currentCamera = nullptr;
 // Control variables
 bool isWindowSizeChanged = true;
-int currentShader = 1;
 int alignSize = 256;
 
-float fresnelBias = 0.5f;
-float fresnelScale = 0.4f;
+float fresnelBias = 0;
+float fresnelScale = 1;
 float fresnelPower = 1;
 bool updateFresnelParameters = true;
 bool mouseBinded = false;
 
 constexpr int CAMERA_COUNT = 1;
-constexpr int MESH_COUNT = 1;
-constexpr int SHADER_PROGRAM_COUNT = 2;
+constexpr int MESH_COUNT = 3;
+constexpr int SHADER_PROGRAM_COUNT = 4;
+constexpr int normalMapSize = 1024;
 }  // namespace
 
 int uboAlign(int i) { return ((i + 1 * (alignSize - 1)) / alignSize) * alignSize; }
@@ -77,6 +77,8 @@ int main() {
   glfwSetWindowTitle(window, "HW3");
   glfwSetKeyCallback(window, keyCallback);
   glfwSetFramebufferSizeCallback(window, resizeCallback);
+  // glEnable(GL_BLEND);
+  // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 #ifndef NDEBUG
   OpenGLContext::printSystemInfo();
   // This is useful if you want to debug your OpenGL API calls.
@@ -93,7 +95,7 @@ int main() {
   }
   // Initialize shader
   std::vector<graphics::shader::ShaderProgram> shaderPrograms(SHADER_PROGRAM_COUNT);
-  std::string filenames[SHADER_PROGRAM_COUNT] = {"skybox", "part1"};
+  std::string filenames[SHADER_PROGRAM_COUNT] = {"skybox", "fresnel", "normalmap", "calculatenormal"};
   for (int i = 0; i < SHADER_PROGRAM_COUNT; ++i) {
     graphics::shader::VertexShader vs;
     graphics::shader::FragmentShader fs;
@@ -107,18 +109,18 @@ int main() {
     shaderPrograms[i].uniformBlockBinding("model", 0);
     shaderPrograms[i].uniformBlockBinding("camera", 1);
 
-    shaderPrograms[i].setUniform("diffuseTexture", 0);
-    shaderPrograms[i].setUniform("skybox", 1);
+    shaderPrograms[i].setUniform("center", normalMapSize / 2, normalMapSize / 2);
+    shaderPrograms[i].setUniform("skybox", 0);
+    shaderPrograms[i].setUniform("diffuseTexture", 1);
+    shaderPrograms[i].setUniform("normalTexture", 2);
   }
   graphics::buffer::UniformBuffer meshUBO, cameraUBO;
   // Calculate UBO alignment size
   glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &alignSize);
   constexpr int perMeshSize = 2 * sizeof(glm::mat4);
   constexpr int perCameraSize = sizeof(glm::mat4) + sizeof(glm::vec4);
-  constexpr int perLightSize = sizeof(glm::mat4) + 2 * sizeof(glm::vec4);
   int perMeshOffset = uboAlign(perMeshSize);
   int perCameraOffset = uboAlign(perCameraSize);
-  int perLightOffset = uboAlign(perLightSize);
   meshUBO.allocate(MESH_COUNT * perMeshOffset, GL_DYNAMIC_DRAW);
   cameraUBO.allocate(CAMERA_COUNT * perCameraOffset, GL_DYNAMIC_DRAW);
   // Default to first data
@@ -138,31 +140,43 @@ int main() {
 
   // Texture
   graphics::texture::TextureCubeMap skybox;
+  graphics::texture::Texture2D wood;
+  graphics::texture::NormalMap normalMap(normalMapSize);
   skybox.fromFile("../assets/texture/posx.jpg", "../assets/texture/negx.jpg", "../assets/texture/posy.jpg",
                   "../assets/texture/negy.jpg", "../assets/texture/posz.jpg", "../assets/texture/negz.jpg", false);
-
+  wood.fromFile("../assets/texture/wood.jpg");
   // Meshes
-  std::vector<graphics::shape::ShapePTR> meshes;
+  std::vector<utils::Mesh> meshes;
+  graphics::shape::Sphere sphere;
+  graphics::shape::Cube skyboxCube;
+  graphics::shape::Plane fakeWave;
+
   {
-    auto sphere = graphics::shape::Sphere::make_unique();
+    using textureVector = std::vector<graphics::texture::Texture*>;
+    meshes.emplace_back(&sphere, &shaderPrograms[1], textureVector{});
+    meshes.emplace_back(&fakeWave, &shaderPrograms[2], textureVector{&skybox, &wood, &normalMap});
+    meshes.emplace_back(&skyboxCube, &shaderPrograms[0], textureVector{&skybox});
 
-    glm::mat4 model = glm::translate(glm::mat4(1), glm::vec3(3, 0, 4));
-    model = glm::scale(model, glm::vec3(2));
-    model = glm::rotate(model, glm::half_pi<float>(), glm::vec3(1, 0, 0));
-    sphere->setModelMatrix(model);
+    sphere.setModelMatrix(glm::translate(glm::mat4(1), glm::vec3(3, 0, 4)));
+    skyboxCube.registerPreDrawFunction([] {
+      glDepthFunc(GL_LEQUAL);
+      glFrontFace(GL_CW);
+    });
+    skyboxCube.registerPostDrawFunction([] {
+      glFrontFace(GL_CCW);
+      glDepthFunc(GL_LESS);
+    });
 
-    meshes.emplace_back(std::move(sphere));
+    fakeWave.setModelMatrix(glm::rotate(glm::mat4(1), glm::half_pi<float>(), glm::vec3(1, 0, 0)));
   }
-  // The cube for skybox
-  auto skyboxCube = graphics::shape::Cube::make_unique();
 
   assert(meshes.size() == MESH_COUNT);
   for (int i = 0; i < MESH_COUNT; ++i) {
     int offset = i * perMeshOffset;
-    meshUBO.load(offset, sizeof(glm::mat4), meshes[i]->getModelMatrixPTR());
-    meshUBO.load(offset + sizeof(glm::mat4), sizeof(glm::mat4), meshes[i]->getNormalMatrixPTR());
+    meshUBO.load(offset, sizeof(glm::mat4), meshes[i].shape->getModelMatrixPTR());
+    meshUBO.load(offset + sizeof(glm::mat4), sizeof(glm::mat4), meshes[i].shape->getNormalMatrixPTR());
   }
-  skybox.bind(1);
+  int currentOffset = 0;
   // Main rendering loop
   while (!glfwWindowShouldClose(window)) {
     // Polling events.
@@ -178,13 +192,25 @@ int main() {
       cameraUBO.load(0, sizeof(glm::mat4), currentCamera->getViewProjectionMatrixPTR());
       cameraUBO.load(sizeof(glm::mat4), sizeof(glm::vec4), currentCamera->getPositionPTR());
     }
-    shaderPrograms[currentShader].use();
+    shaderPrograms[1].use();
     // Update fresnel equation's parametsers.
     if (updateFresnelParameters) {
-      shaderPrograms[currentShader].setUniform("fresnelBias", fresnelBias);
-      shaderPrograms[currentShader].setUniform("fresnelScale", fresnelScale);
-      shaderPrograms[currentShader].setUniform("fresnelPower", fresnelPower);
+      shaderPrograms[1].setUniform("fresnelBias", fresnelBias);
+      shaderPrograms[1].setUniform("fresnelScale", fresnelScale);
+      shaderPrograms[1].setUniform("fresnelPower", fresnelPower);
     }
+    // Update normal map
+    (++currentOffset) %= 101;
+    glViewport(0, 0, normalMapSize, normalMapSize);
+    shaderPrograms[3].use();
+    shaderPrograms[3].setUniform("offset", currentOffset * 0.01f * glm::two_pi<float>());
+    meshUBO.bindUniformBlockIndex(0, perMeshOffset, perMeshSize);
+    normalMap.bindFramebuffer();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    fakeWave.draw();
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glViewport(0, 0, OpenGLContext::getWidth(), OpenGLContext::getHeight());
+
     // GL_XXX_BIT can simply "OR" together to use.
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     // Render all objects
@@ -192,15 +218,8 @@ int main() {
       // Bind current object's model matrix
       meshUBO.bindUniformBlockIndex(0, i * perMeshOffset, perMeshSize);
       // Render current object
-      meshes[i]->draw();
+      meshes[i].draw();
     }
-    // Render skybox after meshes
-    glDepthFunc(GL_LEQUAL);
-    glFrontFace(GL_CW);
-    shaderPrograms[0].use();
-    skyboxCube->draw();
-    glFrontFace(GL_CCW);
-    glDepthFunc(GL_LESS);
     // Render GUI
     renderGUI();
 #ifdef __APPLE__
@@ -209,21 +228,25 @@ int main() {
 #endif
     glfwSwapBuffers(window);
   }
+  ImGui_ImplOpenGL3_Shutdown();
+  ImGui_ImplGlfw_Shutdown();
+  ImGui::DestroyContext();
   return 0;
 }
+
 void renderMainPanel() {
-  ImGui::SetNextWindowSize(ImVec2(320.0f, 100.0f), ImGuiCond_Once);
+  ImGui::SetNextWindowSize(ImVec2(400.0f, 120.0f), ImGuiCond_Once);
   ImGui::SetNextWindowCollapsed(0, ImGuiCond_Once);
   ImGui::SetNextWindowPos(ImVec2(50.0f, 50.0f), ImGuiCond_Once);
   ImGui::SetNextWindowBgAlpha(0.2f);
-  bool dirty = false;
+  updateFresnelParameters = false;
   if (ImGui::Begin("Configs")) {
-    dirty |= ImGui::SliderFloat("Fresnel bias", &fresnelBias, 0, 1, "%.2f");
-    dirty |= ImGui::SliderFloat("Fresnel scale", &fresnelScale, 0, 1, "%.2f");
-    dirty |= ImGui::SliderFloat("Fresnel power", &fresnelPower, 0, 100, "%.1f");
+    updateFresnelParameters |= ImGui::SliderFloat("Fresnel bias", &fresnelBias, 0, 1, "%.2f");
+    updateFresnelParameters |= ImGui::SliderFloat("Fresnel scale", &fresnelScale, 0, 1, "%.2f");
+    updateFresnelParameters |= ImGui::SliderFloat("Fresnel power", &fresnelPower, 0, 10, "%.1f");
+    ImGui::Text("Current framerate: %.0f", ImGui::GetIO().Framerate);
     ImGui::End();
   }
-  updateFresnelParameters = dirty;
 }
 
 void renderGUI() {

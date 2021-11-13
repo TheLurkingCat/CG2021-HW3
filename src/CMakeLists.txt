@@ -15,7 +15,7 @@ set(HW3_SOURCE
   ${HW3_SOURCE_DIR}/shape/plane.cpp
   ${HW3_SOURCE_DIR}/shape/sphere.cpp
   ${HW3_SOURCE_DIR}/texture/cubemap.cpp
-  ${HW3_SOURCE_DIR}/texture/shadow.cpp
+  ${HW3_SOURCE_DIR}/texture/framebuffertexture.cpp
   ${HW3_SOURCE_DIR}/texture/texture.cpp
   ${HW3_SOURCE_DIR}/texture/texture2d.cpp
   ${HW3_SOURCE_DIR}/main.cpp
@@ -41,7 +41,7 @@ set(HW3_HEADER
   ${HW3_INCLUDE_DIR}/shape/shape.h
   ${HW3_INCLUDE_DIR}/shape/sphere.h
   ${HW3_INCLUDE_DIR}/texture/cubemap.h
-  ${HW3_INCLUDE_DIR}/texture/shadow.h
+  ${HW3_INCLUDE_DIR}/texture/framebuffertexture.h
   ${HW3_INCLUDE_DIR}/texture/texture.h
   ${HW3_INCLUDE_DIR}/texture/texture2d.h
   ${HW3_INCLUDE_DIR}/utils.h

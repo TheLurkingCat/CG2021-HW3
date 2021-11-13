@@ -1,5 +1,7 @@
 #pragma once
+#include <functional>
 #include <memory>
+#include <utility>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
@@ -13,6 +15,8 @@ class Shape {
  public:
   Shape() noexcept : modelMatrix(1), normalMatrix(1) {}
   virtual ~Shape() = default;
+  void registerPreDrawFunction(std::function<void()> callback) { preDrawCallback = std::move(callback); }
+  void registerPostDrawFunction(std::function<void()> callback) { postDrawCallback = std::move(callback); }
   virtual void draw() const = 0;
   CONSTEXPR_VIRTUAL virtual const char* getTypeName() const = 0;
   CONSTEXPR_VIRTUAL virtual ShapeType getType() const = 0;
@@ -26,6 +30,10 @@ class Shape {
   const float* getModelMatrixPTR() const { return glm::value_ptr(modelMatrix); }
   glm::mat4 getNormalMatrix() const { return normalMatrix; }
   const float* getNormalMatrixPTR() const { return glm::value_ptr(normalMatrix); }
+
+ protected:
+  std::function<void()> preDrawCallback;
+  std::function<void()> postDrawCallback;
 
  private:
   glm::mat4 modelMatrix;
