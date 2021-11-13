@@ -155,6 +155,8 @@ void OpenGLContext::printSystemInfo() {
 }
 
 void OpenGLContext::framebufferResizeCallback(GLFWwindow*, int width, int height) {
+  // Minimize event guard
+  if (width == 0 && height == 0) return;
   framebuffer_width = width;
   framebuffer_height = height;
   glViewport(0, 0, width, height);
