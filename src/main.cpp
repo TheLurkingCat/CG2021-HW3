@@ -37,6 +37,8 @@ float rotation = 0.0f;
 bool updateRotation = true;
 bool mouseBinded = false;
 
+// TODO (Bonus): Change 'planeSubDivision' to >= 100
+constexpr int planeSubDivision = 100;
 constexpr int CAMERA_COUNT = 1;
 constexpr int MESH_COUNT = 3;
 constexpr int SHADER_PROGRAM_COUNT = 4;
@@ -62,8 +64,8 @@ void keyCallback(GLFWwindow* window, int key, int, int action, int) {
   }
 }
 
-void renderMainPanel(graphics::texture::Texture* texture);
-void renderGUI(graphics::texture::Texture* texture);
+void renderMainPanel(graphics::texture::Texture* normalmap, graphics::texture::Texture* heightmap);
+void renderGUI(graphics::texture::Texture* normalmap, graphics::texture::Texture* heightmap);
 
 void resizeCallback(GLFWwindow* window, int width, int height) {
   OpenGLContext::framebufferResizeCallback(window, width, height);
@@ -114,6 +116,7 @@ int main() {
     shaderPrograms[i].setUniform("skybox", 0);
     shaderPrograms[i].setUniform("diffuseTexture", 1);
     shaderPrograms[i].setUniform("normalTexture", 2);
+    shaderPrograms[i].setUniform("heightTexture", 3);
   }
   graphics::buffer::UniformBuffer meshUBO, cameraUBO;
   // Calculate UBO alignment size
@@ -142,7 +145,12 @@ int main() {
   // Texture
   graphics::texture::TextureCubeMap skybox;
   graphics::texture::Texture2D wood;
-  graphics::texture::NormalMap normalMap(normalMapSize);
+  graphics::texture::Framebuffer fbo;
+  fbo.setBuffers({GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1}, GL_NONE);
+  graphics::texture::ColorMap normalMap(normalMapSize, GL_RGBA32F);
+  normalMap.attachtoFramebuffer(&fbo, GL_COLOR_ATTACHMENT0);
+  graphics::texture::ColorMap heightMap(normalMapSize, GL_R32F);
+  heightMap.attachtoFramebuffer(&fbo, GL_COLOR_ATTACHMENT1);
   skybox.fromFile("../assets/texture/posx.jpg", "../assets/texture/negx.jpg", "../assets/texture/posy.jpg",
                   "../assets/texture/negy.jpg", "../assets/texture/posz.jpg", "../assets/texture/negz.jpg", false);
   wood.fromFile("../assets/texture/wood.jpg");
@@ -150,12 +158,14 @@ int main() {
   std::vector<utils::Mesh> meshes;
   graphics::shape::Sphere sphere;
   graphics::shape::Cube skyboxCube;
-  graphics::shape::Plane fakeWave;
-
+  std::vector<GLfloat> vertex;
+  std::vector<GLuint> index;
+  graphics::shape::Plane::generateVertices(vertex, index, planeSubDivision);
+  graphics::shape::Plane fakeWave(vertex, index);
   {
     using textureVector = std::vector<graphics::texture::Texture*>;
     meshes.emplace_back(&sphere, &shaderPrograms[1], textureVector{});
-    meshes.emplace_back(&fakeWave, &shaderPrograms[2], textureVector{&skybox, &wood, &normalMap});
+    meshes.emplace_back(&fakeWave, &shaderPrograms[2], textureVector{&skybox, &wood, &normalMap, &heightMap});
     meshes.emplace_back(&skyboxCube, &shaderPrograms[0], textureVector{&skybox});
 
     sphere.setModelMatrix(glm::translate(glm::mat4(1), glm::vec3(3, 0, 0)));
@@ -204,7 +214,7 @@ int main() {
       meshUBO.load(perMeshOffset + sizeof(glm::mat4), sizeof(glm::mat4), meshes[1].shape->getNormalMatrixPTR());
     }
     // Update normal map
-    normalMap.bindFramebuffer();
+    fbo.bind();
     glClear(GL_COLOR_BUFFER_BIT);
     (++currentOffset) %= 101;
     glViewport(0, 0, normalMapSize, normalMapSize);
@@ -225,7 +235,7 @@ int main() {
       meshes[i].draw();
     }
     // Render GUI
-    renderGUI(&normalMap);
+    renderGUI(&normalMap, &heightMap);
 #ifdef __APPLE__
     // Some platform need explicit glFlush
     glFlush();
@@ -238,8 +248,9 @@ int main() {
   return 0;
 }
 
-void renderMainPanel(graphics::texture::Texture* texture) {
-  static bool trigger = false;
+void renderMainPanel(graphics::texture::Texture* normalmap, graphics::texture::Texture* heightmap) {
+  static bool normalMapButton = false;
+  static bool heightMapButton = false;
   ImGui::SetNextWindowSize(ImVec2(400.0f, 250.0f), ImGuiCond_Once);
   ImGui::SetNextWindowCollapsed(0, ImGuiCond_Once);
   ImGui::SetNextWindowPos(ImVec2(50.0f, 50.0f), ImGuiCond_Once);
@@ -253,14 +264,31 @@ void renderMainPanel(graphics::texture::Texture* texture) {
     ImGui::Text("----------------------- Part2 -----------------------");
     updateRotation = ImGui::SliderFloat("Plane rotation", &rotation, 0, 90, "%.1f");
     if (ImGui::Button("Show normal map")) {
-      trigger = !trigger;
+      normalMapButton = !normalMapButton;
     }
-    if (trigger) {
+    ImGui::SameLine();
+    if (ImGui::Button("Show height map")) {
+      heightMapButton = !heightMapButton;
+    }
+    if (normalMapButton) {
       ImGui::SetNextWindowSize(ImVec2(271.0f, 291.0f), ImGuiCond_Once);
       ImGui::SetNextWindowCollapsed(0, ImGuiCond_Once);
       ImGui::SetNextWindowBgAlpha(1.0f);
       if (ImGui::Begin("Normal Map")) {
-        auto tex = reinterpret_cast<ImTextureID>(static_cast<std::uintptr_t>(texture->getHandle()));
+        auto tex = reinterpret_cast<ImTextureID>(static_cast<std::uintptr_t>(normalmap->getHandle()));
+        auto wsize = ImGui::GetWindowSize();
+        wsize.x -= 15;
+        wsize.y -= 35;
+        ImGui::Image(tex, wsize, ImVec2(0, 1), ImVec2(1, 0));
+      }
+      ImGui::End();
+    }
+    if (heightMapButton) {
+      ImGui::SetNextWindowSize(ImVec2(271.0f, 291.0f), ImGuiCond_Once);
+      ImGui::SetNextWindowCollapsed(0, ImGuiCond_Once);
+      ImGui::SetNextWindowBgAlpha(1.0f);
+      if (ImGui::Begin("Height Map")) {
+        auto tex = reinterpret_cast<ImTextureID>(static_cast<std::uintptr_t>(heightmap->getHandle()));
         auto wsize = ImGui::GetWindowSize();
         wsize.x -= 15;
         wsize.y -= 35;
@@ -274,11 +302,11 @@ void renderMainPanel(graphics::texture::Texture* texture) {
   ImGui::End();
 }
 
-void renderGUI(graphics::texture::Texture* texture) {
+void renderGUI(graphics::texture::Texture* normalmap, graphics::texture::Texture* heightmap) {
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
-  renderMainPanel(texture);
+  renderMainPanel(normalmap, heightmap);
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
