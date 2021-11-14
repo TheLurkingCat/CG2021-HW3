@@ -28,11 +28,15 @@ Plane::Plane() {
     ebo->bind();
 
     vao->enable(0);
-    vao->setAttributePointer(0, 3, 8, 0);
+    vao->setAttributePointer(0, 3, 14, 0);
     vao->enable(1);
-    vao->setAttributePointer(1, 3, 8, 3);
+    vao->setAttributePointer(1, 3, 14, 3);
     vao->enable(2);
-    vao->setAttributePointer(2, 2, 8, 6);
+    vao->setAttributePointer(2, 2, 14, 6);
+    vao->enable(3);
+    vao->setAttributePointer(3, 3, 14, 8);
+    vao->enable(4);
+    vao->setAttributePointer(4, 3, 14, 11);
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -53,11 +57,15 @@ Plane::Plane(const std::vector<GLfloat>& vertices, const std::vector<GLuint>& in
   ebo->bind();
 
   vao->enable(0);
-  vao->setAttributePointer(0, 3, 8, 0);
+  vao->setAttributePointer(0, 3, 14, 0);
   vao->enable(1);
-  vao->setAttributePointer(1, 3, 8, 3);
+  vao->setAttributePointer(1, 3, 14, 3);
   vao->enable(2);
-  vao->setAttributePointer(2, 2, 8, 6);
+  vao->setAttributePointer(2, 2, 14, 6);
+  vao->enable(3);
+  vao->setAttributePointer(3, 3, 14, 8);
+  vao->enable(4);
+  vao->setAttributePointer(4, 3, 14, 11);
 
   glBindVertexArray(0);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -93,6 +101,7 @@ void Plane::generateVertices(std::vector<GLfloat>& vertices,
         vertices.insert(vertices.end(), {0 + j * wTexStep, 1 - i * hTexStep});
       else
         vertices.insert(vertices.end(), {0 + j * wTexStep, height - i * hTexStep});
+      vertices.insert(vertices.end(), {1, 0, 0, 0, 0, -1});
     }
   }
 

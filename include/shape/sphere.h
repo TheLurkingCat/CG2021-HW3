@@ -23,8 +23,8 @@ class Sphere final : public Shape {
   }
   static void generateVertices(std::vector<GLfloat>& vertex,
                                std::vector<GLuint>& index,
-                               int stack = 18,
-                               int slice = 36);
+                               int stack = 180,
+                               int slice = 360);
 
  private:
   std::shared_ptr<buffer::VertexArray> vao;

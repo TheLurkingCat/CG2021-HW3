@@ -21,4 +21,6 @@ void Texture::bind(GLuint index) const {
     currentHandle = handle;
   }
 }
+
+GLuint Texture::getHandle() const { return handle; }
 }  // namespace graphics::texture

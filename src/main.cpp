@@ -33,6 +33,8 @@ float fresnelBias = 0;
 float fresnelScale = 1;
 float fresnelPower = 1;
 bool updateFresnelParameters = true;
+float rotation = 0.0f;
+bool updateRotation = true;
 bool mouseBinded = false;
 
 constexpr int CAMERA_COUNT = 1;
@@ -60,8 +62,8 @@ void keyCallback(GLFWwindow* window, int key, int, int action, int) {
   }
 }
 
-void renderMainPanel();
-void renderGUI();
+void renderMainPanel(graphics::texture::Texture* texture);
+void renderGUI(graphics::texture::Texture* texture);
 
 void resizeCallback(GLFWwindow* window, int width, int height) {
   OpenGLContext::framebufferResizeCallback(window, width, height);
@@ -109,7 +111,6 @@ int main() {
     shaderPrograms[i].uniformBlockBinding("model", 0);
     shaderPrograms[i].uniformBlockBinding("camera", 1);
 
-    shaderPrograms[i].setUniform("center", normalMapSize / 2, normalMapSize / 2);
     shaderPrograms[i].setUniform("skybox", 0);
     shaderPrograms[i].setUniform("diffuseTexture", 1);
     shaderPrograms[i].setUniform("normalTexture", 2);
@@ -128,7 +129,7 @@ int main() {
   cameraUBO.bindUniformBlockIndex(1, 0, perCameraSize);
   // Camera
   std::vector<graphics::camera::CameraPTR> cameras;
-  cameras.emplace_back(graphics::camera::QuaternionCamera::make_unique(glm::vec3(0, 0, 15)));
+  cameras.emplace_back(graphics::camera::QuaternionCamera::make_unique(glm::vec3(0, 2, 5)));
   assert(cameras.size() == CAMERA_COUNT);
   for (int i = 0; i < CAMERA_COUNT; ++i) {
     int offset = i * perCameraOffset;
@@ -157,7 +158,7 @@ int main() {
     meshes.emplace_back(&fakeWave, &shaderPrograms[2], textureVector{&skybox, &wood, &normalMap});
     meshes.emplace_back(&skyboxCube, &shaderPrograms[0], textureVector{&skybox});
 
-    sphere.setModelMatrix(glm::translate(glm::mat4(1), glm::vec3(3, 0, 4)));
+    sphere.setModelMatrix(glm::translate(glm::mat4(1), glm::vec3(3, 0, 0)));
     skyboxCube.registerPreDrawFunction([] {
       glDepthFunc(GL_LEQUAL);
       glFrontFace(GL_CW);
@@ -166,8 +167,6 @@ int main() {
       glFrontFace(GL_CCW);
       glDepthFunc(GL_LESS);
     });
-
-    fakeWave.setModelMatrix(glm::rotate(glm::mat4(1), glm::half_pi<float>(), glm::vec3(1, 0, 0)));
   }
 
   assert(meshes.size() == MESH_COUNT);
@@ -199,18 +198,23 @@ int main() {
       shaderPrograms[1].setUniform("fresnelScale", fresnelScale);
       shaderPrograms[1].setUniform("fresnelPower", fresnelPower);
     }
+    if (updateRotation) {
+      fakeWave.setModelMatrix(glm::rotate(glm::mat4(1), glm::radians(rotation), glm::vec3(1, 0, 0)));
+      meshUBO.load(perMeshOffset, sizeof(glm::mat4), meshes[1].shape->getModelMatrixPTR());
+      meshUBO.load(perMeshOffset + sizeof(glm::mat4), sizeof(glm::mat4), meshes[1].shape->getNormalMatrixPTR());
+    }
     // Update normal map
+    normalMap.bindFramebuffer();
+    glClear(GL_COLOR_BUFFER_BIT);
     (++currentOffset) %= 101;
     glViewport(0, 0, normalMapSize, normalMapSize);
     shaderPrograms[3].use();
     shaderPrograms[3].setUniform("offset", currentOffset * 0.01f * glm::two_pi<float>());
     meshUBO.bindUniformBlockIndex(0, perMeshOffset, perMeshSize);
-    normalMap.bindFramebuffer();
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     fakeWave.draw();
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glViewport(0, 0, OpenGLContext::getWidth(), OpenGLContext::getHeight());
 
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     // GL_XXX_BIT can simply "OR" together to use.
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     // Render all objects
@@ -221,7 +225,7 @@ int main() {
       meshes[i].draw();
     }
     // Render GUI
-    renderGUI();
+    renderGUI(&normalMap);
 #ifdef __APPLE__
     // Some platform need explicit glFlush
     glFlush();
@@ -234,26 +238,47 @@ int main() {
   return 0;
 }
 
-void renderMainPanel() {
-  ImGui::SetNextWindowSize(ImVec2(400.0f, 120.0f), ImGuiCond_Once);
+void renderMainPanel(graphics::texture::Texture* texture) {
+  static bool trigger = false;
+  ImGui::SetNextWindowSize(ImVec2(400.0f, 250.0f), ImGuiCond_Once);
   ImGui::SetNextWindowCollapsed(0, ImGuiCond_Once);
   ImGui::SetNextWindowPos(ImVec2(50.0f, 50.0f), ImGuiCond_Once);
   ImGui::SetNextWindowBgAlpha(0.2f);
   updateFresnelParameters = false;
   if (ImGui::Begin("Configs")) {
+    ImGui::Text("----------------------- Part1 -----------------------");
     updateFresnelParameters |= ImGui::SliderFloat("Fresnel bias", &fresnelBias, 0, 1, "%.2f");
     updateFresnelParameters |= ImGui::SliderFloat("Fresnel scale", &fresnelScale, 0, 1, "%.2f");
     updateFresnelParameters |= ImGui::SliderFloat("Fresnel power", &fresnelPower, 0, 10, "%.1f");
+    ImGui::Text("----------------------- Part2 -----------------------");
+    updateRotation = ImGui::SliderFloat("Plane rotation", &rotation, 0, 90, "%.1f");
+    if (ImGui::Button("Show normal map")) {
+      trigger = !trigger;
+    }
+    if (trigger) {
+      ImGui::SetNextWindowSize(ImVec2(271.0f, 291.0f), ImGuiCond_Once);
+      ImGui::SetNextWindowCollapsed(0, ImGuiCond_Once);
+      ImGui::SetNextWindowBgAlpha(1.0f);
+      if (ImGui::Begin("Normal Map")) {
+        auto tex = reinterpret_cast<ImTextureID>(static_cast<std::uintptr_t>(texture->getHandle()));
+        auto wsize = ImGui::GetWindowSize();
+        wsize.x -= 15;
+        wsize.y -= 35;
+        ImGui::Image(tex, wsize, ImVec2(0, 1), ImVec2(1, 0));
+      }
+      ImGui::End();
+    }
+    ImGui::Text("----------------------- Other -----------------------");
     ImGui::Text("Current framerate: %.0f", ImGui::GetIO().Framerate);
-    ImGui::End();
   }
+  ImGui::End();
 }
 
-void renderGUI() {
+void renderGUI(graphics::texture::Texture* texture) {
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
-  renderMainPanel();
+  renderMainPanel(texture);
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }

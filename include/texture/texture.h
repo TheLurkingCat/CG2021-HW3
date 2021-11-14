@@ -27,6 +27,7 @@ class Texture {
   CONSTEXPR_VIRTUAL virtual const char* getTypeName() const = 0;
   CONSTEXPR_VIRTUAL virtual GLenum getType() const = 0;
   void bind(GLuint index = 0) const;
+  GLuint getHandle() const;
 
  protected:
   static std::array<std::unordered_map<GLenum, GLuint>, 16> currentBinding;
