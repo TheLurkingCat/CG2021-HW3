@@ -13,7 +13,7 @@ out VS_OUT {
 } vs_out;
 
 uniform bool useDisplacementMapping;
-// TODO (Bonus-Displacement): You may need these if you want to implement displacement mapping. 
+// TODO (Bonus-Displacement): You may need these if you want to implement displacement mapping.
 uniform sampler2D heightTexture;
 float depthScale = 0.01;
 
@@ -33,7 +33,6 @@ layout (std140) uniform camera {
 
 void main() {
   // Direction of light, hard coded here for convinience.
-  // const vec3 lightDirection = normalize(vec3(0, 0, -1));
   const vec3 lightDirection = normalize(vec3(-11.1, -24.9, 14.8));
   // TODO:
   //   1. Calculate the inverse of tangent space transform matrix (TBN matrix)

@@ -14,31 +14,31 @@ uniform sampler2D diffuseTexture;
 // RGB contains the normal
 uniform sampler2D normalTexture;
 // R contains the height
-// TODO (Bonus-Parallax): You may need these if you want to implement parallax mapping. 
+// TODO (Bonus-Parallax): You may need these if you want to implement parallax mapping.
 uniform sampler2D heightTexture;
 float depthScale = 0.01;
 
 vec2 parallaxMapping(vec2 textureCoordinate, vec3 viewDirection)
 {
   // number of depth layers
-  const float minLayers = 10;
-  const float maxLayers = 20;
-  // TODO (Bonus-Parallax): Implement occlusion parallax mapping. 
+  const float minLayers = 8;
+  const float maxLayers = 32;
+  // TODO (Bonus-Parallax): Implement occlusion parallax mapping.
   // Hint: You need to return a new texture coordinate.
   float numLayers = mix(maxLayers, minLayers, abs(viewDirection.z));
   float layerDepth = 1.0 / numLayers;
   float currentLayerDepth = 0.0;
   // Shift amount of the texture coordinates per layer.
-  vec2 P = viewDirection.xy / viewDirection.z * depthScale; 
+  vec2 P = depthScale * viewDirection.xy / viewDirection.z;
   vec2 deltaTextureCoordinate = P / numLayers;
   vec2  currentTextureCoordinate = textureCoordinate;
   float currentTextureDepth = 1.0 - texture(heightTexture, currentTextureCoordinate).r;
-    
+
   while(currentLayerDepth < currentTextureDepth) {
     // Shift along direction of P
     currentTextureCoordinate -= deltaTextureCoordinate;
-    currentTextureDepth = 1.0 - texture(heightTexture, currentTextureCoordinate).r;  
-    currentLayerDepth += layerDepth;  
+    currentTextureDepth = 1.0 - texture(heightTexture, currentTextureCoordinate).r;
+    currentLayerDepth += layerDepth;
   }
   // get texture coordinates before collision (reverse operations)
   vec2 prevTextureCoordinate = currentTextureCoordinate + deltaTextureCoordinate;
