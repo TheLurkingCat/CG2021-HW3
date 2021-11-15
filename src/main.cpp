@@ -286,6 +286,7 @@ void renderMainPanel(graphics::texture::Texture* normalmap, graphics::texture::T
     if (normalMapButton) {
       ImGui::SetNextWindowSize(ImVec2(271.0f, 291.0f), ImGuiCond_Once);
       ImGui::SetNextWindowCollapsed(0, ImGuiCond_Once);
+      ImGui::SetNextWindowPos(ImVec2(460.0f, 50.0f), ImGuiCond_Once);
       ImGui::SetNextWindowBgAlpha(1.0f);
       if (ImGui::Begin("Normal Map")) {
         auto tex = reinterpret_cast<ImTextureID>(static_cast<std::uintptr_t>(normalmap->getHandle()));
@@ -299,6 +300,7 @@ void renderMainPanel(graphics::texture::Texture* normalmap, graphics::texture::T
     if (heightMapButton) {
       ImGui::SetNextWindowSize(ImVec2(271.0f, 291.0f), ImGuiCond_Once);
       ImGui::SetNextWindowCollapsed(0, ImGuiCond_Once);
+      ImGui::SetNextWindowPos(ImVec2(740.0f, 50.0f), ImGuiCond_Once);
       ImGui::SetNextWindowBgAlpha(1.0f);
       if (ImGui::Begin("Height Map")) {
         auto tex = reinterpret_cast<ImTextureID>(static_cast<std::uintptr_t>(heightmap->getHandle()));
