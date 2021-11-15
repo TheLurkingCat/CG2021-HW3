@@ -8,7 +8,7 @@ if [[ !(-d src) ]]; then
   exit 1
 fi
 
-git apply script/homework.patch \
+git apply --ignore-whitespace script/homework.patch \
 && zip -qr9 HW3.zip \
 extern/glad \
 extern/glfw/CMake \
@@ -23,6 +23,7 @@ extern/glm/glm \
 extern/glm/CMakeLists.txt \
 extern/glm/copying.txt \
 extern/stb \
+extern/imgui \
 script/pack.ps1 \
 script/pack.sh \
 cmake \
@@ -33,4 +34,4 @@ src \
 .clang-format \
 CMakeLists.txt \
 README.md \
-&& git apply -R script/homework.patch
+&& git apply -R --ignore-whitespace script/homework.patch
