@@ -23,8 +23,9 @@ vec2 parallaxMapping(vec2 textureCoordinate, vec3 viewDirection)
   // number of depth layers
   const float minLayers = 8;
   const float maxLayers = 32;
-  // TODO (Bonus-Parallax): Implement occlusion parallax mapping.
+  // TODO (Bonus-Parallax): Implement parallax occlusion mapping.
   // Hint: You need to return a new texture coordinate.
+  // Note: The texture is 'height' texture, you may need a 'depth' texture, which is 1 - height.
   float numLayers = mix(maxLayers, minLayers, abs(viewDirection.z));
   float layerDepth = 1.0 / numLayers;
   float currentLayerDepth = 0.0;
