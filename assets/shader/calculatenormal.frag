@@ -1,5 +1,5 @@
 #version 330 core
-layout(location = 0) out vec4 FragColor;
+layout(location = 0) out vec4 normal;
 layout(location = 1) out float height;
 
 uniform float offset;
@@ -26,6 +26,6 @@ void main() {
     vec3 n1 = normalize(cross(p2 - p1, p3 - p1));
     vec3 n2 = normalize(cross(p3 - p1, p4 - p1));
     vec3 n = normalize(n1 + n2) * 0.5 + 0.5;
-    FragColor = vec4(n, 1.0);
+    normal = vec4(n, 1.0);
     height = sin(offset - 0.1 * y) * 0.5 + 0.5;
 }
