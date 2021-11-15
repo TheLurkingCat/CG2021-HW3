@@ -13,7 +13,7 @@ if ($args.count -eq 1) {
   $compress = @{
     Path = "include", "src", "assets"
     CompressionLevel = "Optimal"
-    DestinationPath = "hw2_$studentid.zip"
+    DestinationPath = "hw3_$studentid.zip"
   }
   Compress-Archive @compress
 } else {
