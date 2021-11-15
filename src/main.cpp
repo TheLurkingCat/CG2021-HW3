@@ -35,10 +35,13 @@ float fresnelPower = 1;
 bool updateFresnelParameters = true;
 float rotation = 0.0f;
 bool updateRotation = true;
+bool useDisplacement = false;
+bool useParallax = false;
+bool updateMapping = false;
 bool mouseBinded = false;
 
-// TODO (Bonus): Change 'planeSubDivision' to >= 100
-constexpr int planeSubDivision = 100;
+// TODO (Bonus-Displacement): Change 'planeSubDivision' to >= 100, otherwise displacement mapping will not look good.
+constexpr int planeSubDivision = 1;
 constexpr int CAMERA_COUNT = 1;
 constexpr int MESH_COUNT = 3;
 constexpr int SHADER_PROGRAM_COUNT = 4;
@@ -113,6 +116,8 @@ int main() {
     shaderPrograms[i].uniformBlockBinding("model", 0);
     shaderPrograms[i].uniformBlockBinding("camera", 1);
 
+    shaderPrograms[i].setUniform("useDisplacementMapping", 0);
+    shaderPrograms[i].setUniform("useParallaxMapping", 0);
     shaderPrograms[i].setUniform("skybox", 0);
     shaderPrograms[i].setUniform("diffuseTexture", 1);
     shaderPrograms[i].setUniform("normalTexture", 2);
@@ -207,11 +212,20 @@ int main() {
       shaderPrograms[1].setUniform("fresnelBias", fresnelBias);
       shaderPrograms[1].setUniform("fresnelScale", fresnelScale);
       shaderPrograms[1].setUniform("fresnelPower", fresnelPower);
+      updateFresnelParameters = false;
     }
     if (updateRotation) {
       fakeWave.setModelMatrix(glm::rotate(glm::mat4(1), glm::radians(rotation), glm::vec3(1, 0, 0)));
       meshUBO.load(perMeshOffset, sizeof(glm::mat4), meshes[1].shape->getModelMatrixPTR());
       meshUBO.load(perMeshOffset + sizeof(glm::mat4), sizeof(glm::mat4), meshes[1].shape->getNormalMatrixPTR());
+      updateRotation = false;
+    }
+    // update switches
+    if (updateMapping) {
+      shaderPrograms[2].use();
+      shaderPrograms[2].setUniform("useParallaxMapping", useParallax);
+      shaderPrograms[2].setUniform("useDisplacementMapping", useDisplacement);
+      updateMapping = false;
     }
     // Update normal map
     fbo.bind();
@@ -251,11 +265,10 @@ int main() {
 void renderMainPanel(graphics::texture::Texture* normalmap, graphics::texture::Texture* heightmap) {
   static bool normalMapButton = false;
   static bool heightMapButton = false;
-  ImGui::SetNextWindowSize(ImVec2(400.0f, 250.0f), ImGuiCond_Once);
+  ImGui::SetNextWindowSize(ImVec2(400.0f, 275.0f), ImGuiCond_Once);
   ImGui::SetNextWindowCollapsed(0, ImGuiCond_Once);
   ImGui::SetNextWindowPos(ImVec2(50.0f, 50.0f), ImGuiCond_Once);
   ImGui::SetNextWindowBgAlpha(0.2f);
-  updateFresnelParameters = false;
   if (ImGui::Begin("Configs")) {
     ImGui::Text("----------------------- Part1 -----------------------");
     updateFresnelParameters |= ImGui::SliderFloat("Fresnel bias", &fresnelBias, 0, 1, "%.2f");
@@ -296,6 +309,10 @@ void renderMainPanel(graphics::texture::Texture* normalmap, graphics::texture::T
       }
       ImGui::End();
     }
+    ImGui::Text("----------------------- Bonus -----------------------");
+    updateMapping |= ImGui::Checkbox("Displacement", &useDisplacement);
+    ImGui::SameLine();
+    updateMapping |= ImGui::Checkbox("Parallax", &useParallax);
     ImGui::Text("----------------------- Other -----------------------");
     ImGui::Text("Current framerate: %.0f", ImGui::GetIO().Framerate);
   }
