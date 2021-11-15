@@ -6,9 +6,6 @@ set(HW3_SOURCE
   ${HW3_SOURCE_DIR}/camera/camera.cpp
   ${HW3_SOURCE_DIR}/camera/quat_camera.cpp
   ${HW3_SOURCE_DIR}/context_manager.cpp
-  ${HW3_SOURCE_DIR}/light/directionallight.cpp
-  ${HW3_SOURCE_DIR}/light/pointlight.cpp
-  ${HW3_SOURCE_DIR}/light/spotlight.cpp
   ${HW3_SOURCE_DIR}/shader/program.cpp
   ${HW3_SOURCE_DIR}/shader/shader.cpp
   ${HW3_SOURCE_DIR}/shape/cube.cpp
@@ -30,10 +27,6 @@ set(HW3_HEADER
   ${HW3_INCLUDE_DIR}/camera/quat_camera.h
   ${HW3_INCLUDE_DIR}/context_manager.h
   ${HW3_INCLUDE_DIR}/graphics.h
-  ${HW3_INCLUDE_DIR}/light/directionallight.h
-  ${HW3_INCLUDE_DIR}/light/light.h
-  ${HW3_INCLUDE_DIR}/light/pointlight.h
-  ${HW3_INCLUDE_DIR}/light/spotlight.h
   ${HW3_INCLUDE_DIR}/shader/program.h
   ${HW3_INCLUDE_DIR}/shader/shader.h
   ${HW3_INCLUDE_DIR}/shape/cube.h

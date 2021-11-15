@@ -27,17 +27,11 @@
     <Filter Include="來源檔案\texture">
       <UniqueIdentifier>{6c8c5fd6-66b7-4d57-858c-c5bcc72f8a46}</UniqueIdentifier>
     </Filter>
-    <Filter Include="來源檔案\light">
-      <UniqueIdentifier>{95435e82-6ec0-4192-b8f0-12c10c16925e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="來源檔案\shader">
       <UniqueIdentifier>{eee3d4fd-baef-4b12-9480-ba8334a2c5db}</UniqueIdentifier>
     </Filter>
     <Filter Include="標頭檔\buffer">
       <UniqueIdentifier>{55db3813-b4b5-4452-a8b2-16a9dc1f01b2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="標頭檔\light">
-      <UniqueIdentifier>{8ed240f9-ca99-41d3-bdc1-3509a0e4a24f}</UniqueIdentifier>
     </Filter>
     <Filter Include="標頭檔\texture">
       <UniqueIdentifier>{dbc61221-398e-482d-a143-f0f45a3c3854}</UniqueIdentifier>
@@ -86,20 +80,11 @@
     <ClCompile Include="..\..\src\texture\texture2d.cpp">
       <Filter>來源檔案\texture</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\light\directionallight.cpp">
-      <Filter>來源檔案\light</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\light\pointlight.cpp">
-      <Filter>來源檔案\light</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\shader\program.cpp">
       <Filter>來源檔案\shader</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\shader\shader.cpp">
       <Filter>來源檔案\shader</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\light\spotlight.cpp">
-      <Filter>來源檔案\light</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\shape\cube.cpp">
       <Filter>來源檔案\shape</Filter>
@@ -166,15 +151,6 @@
     <ClInclude Include="..\..\include\buffer\vertexarray.h">
       <Filter>標頭檔\buffer</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\light\directionallight.h">
-      <Filter>標頭檔\light</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\light\light.h">
-      <Filter>標頭檔\light</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\light\pointlight.h">
-      <Filter>標頭檔\light</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\shader\program.h">
       <Filter>標頭檔\shader</Filter>
     </ClInclude>
@@ -186,9 +162,6 @@
     </ClInclude>
     <ClInclude Include="..\..\include\graphics.h">
       <Filter>標頭檔</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\light\spotlight.h">
-      <Filter>標頭檔\light</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\shape\cube.h">
       <Filter>標頭檔\shape</Filter>

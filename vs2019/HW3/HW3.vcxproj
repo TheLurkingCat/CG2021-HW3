@@ -214,9 +214,6 @@
     <ClCompile Include="..\..\src\camera\camera.cpp" />
     <ClCompile Include="..\..\src\camera\quat_camera.cpp" />
     <ClCompile Include="..\..\src\context_manager.cpp" />
-    <ClCompile Include="..\..\src\light\directionallight.cpp" />
-    <ClCompile Include="..\..\src\light\pointlight.cpp" />
-    <ClCompile Include="..\..\src\light\spotlight.cpp" />
     <ClCompile Include="..\..\src\main.cpp" />
     <ClCompile Include="..\..\src\shader\program.cpp" />
     <ClCompile Include="..\..\src\shader\shader.cpp" />
@@ -235,10 +232,6 @@
     <ClInclude Include="..\..\include\camera\quat_camera.h" />
     <ClInclude Include="..\..\include\filesystem.h" />
     <ClInclude Include="..\..\include\graphics.h" />
-    <ClInclude Include="..\..\include\light\directionallight.h" />
-    <ClInclude Include="..\..\include\light\light.h" />
-    <ClInclude Include="..\..\include\light\pointlight.h" />
-    <ClInclude Include="..\..\include\light\spotlight.h" />
     <ClInclude Include="..\..\include\mesh.h" />
     <ClInclude Include="..\..\include\shader\program.h" />
     <ClInclude Include="..\..\include\shader\shader.h" />
