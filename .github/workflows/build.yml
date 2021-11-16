@@ -25,7 +25,7 @@ jobs:
       - name: Test zipped release
         run: script/release.sh
       - name: Move and unzip release
-        run: mkdir test_release_zip && mv HW2.zip test_release_zip/HW2.zip && cd test_release_zip && unzip HW2.zip
+        run: mkdir test_release_zip && mv HW3.zip test_release_zip/HW3.zip && cd test_release_zip && unzip HW3.zip
 
       - name: Configure release
         run: cmake -S ${{github.workspace}}/test_release_zip -B ${{github.workspace}}/build_rel -DCMAKE_BUILD_TYPE=Release
@@ -50,7 +50,7 @@ jobs:
       - name: Test zipped release
         run: script/release.sh
       - name: Move and unzip release
-        run: mkdir test_release_zip && mv HW2.zip test_release_zip/HW2.zip && cd test_release_zip && unzip HW2.zip
+        run: mkdir test_release_zip && mv HW3.zip test_release_zip/HW3.zip && cd test_release_zip && unzip HW3.zip
 
       - name: Configure release
         run: cmake -S ${{github.workspace}}/test_release_zip -B ${{github.workspace}}/build_rel -DCMAKE_BUILD_TYPE=Release
